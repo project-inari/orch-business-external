@@ -1,6 +1,6 @@
 package dto
 
-// CreateNewBusinessReq represents the request body for creating a new business
+// CoreBusinessServerCreateReq represents the request body for creating a new business with core business server API
 type CoreBusinessServerCreateReq struct {
 	Name             string         `json:"name"`
 	IndustryType     string         `json:"industryType"`
@@ -13,7 +13,7 @@ type CoreBusinessServerCreateReq struct {
 	OwnerUsername    string         `json:"ownerUsername"`
 }
 
-// CoreBusinessServerCreateRes represents the response body for creating a new business
+// CoreBusinessServerCreateRes represents the response body for creating a new business with core business server API
 type CoreBusinessServerCreateRes struct {
 	BusinessID   int    `json:"businessId"`
 	BusinessName string `json:"businessName"`
