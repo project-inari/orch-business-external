@@ -1,7 +1,46 @@
-GET http://localhost:8080/v1/example
+POST http://localhost:8080/v1/create
 Content-Type: application/json
 Authorization: Bearer testtoken
-
-GET http://localhost:8080/v1/test
-Content-Type: application/json
-Authorization: Bearer testtoken
+{
+    "name": "testbiz1",
+    "industryType": "IT",
+    "businessType": "Retail",
+    "description": "This is a test business",
+    "PhoneNo": "+66999999990",
+    "operatingHours": {
+        "monday": {
+            "open": true,
+            "openTime": "09:00",
+            "closeTime": "17:00"
+        },
+        "tuesday": {
+            "open": true,
+            "openTime": "09:00",
+            "closeTime": "17:00"
+        },
+        "wednesday": {
+            "open": true,
+            "openTime": "09:00",
+            "closeTime": "17:00"
+        },
+        "thursday": {
+            "open": true,
+            "openTime": "09:00",
+            "closeTime": "17:00"
+        },
+        "friday": {
+            "open": true,
+            "openTime": "09:00",
+            "closeTime": "17:00"
+        },
+        "saturday": {
+            "open": false
+        },
+        "sunday": {
+            "open": false
+        }
+    },
+    "address": "123/456",
+    "businessImageUrl": "https://www.google.com",
+    "ownerUsername": "test1"
+}

@@ -15,17 +15,16 @@ func (h *httpHandler) initRoutes(e *echo.Echo) {
 		return func(c echo.Context) error {
 			token := c.Request().Header.Get("Authorization")
 			if token == "" {
-				return response.ErrorResponse(c, http.StatusUnauthorized, "error - missing token", "ERR1")
+				return response.ErrorResponse(c, http.StatusUnauthorized, "error - missing token", errorCodeMissingToken)
 			}
 
 			newCtx, err := h.d.Service.Auth(c, token)
 			if err != nil {
-				return response.ErrorResponse(c, http.StatusUnauthorized, "error - invalid token", "ERR1")
+				return response.ErrorResponse(c, http.StatusUnauthorized, "error - invalid token", errorCodeInvalidToken)
 			}
 
 			return next(newCtx)
 		}
 	})
-	v1.GET("/example", h.DoExample)
-	v1.GET("/test", h.DoWiremock)
+	v1.POST("/create", h.CreateNewBusiness)
 }

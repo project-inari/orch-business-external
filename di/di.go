@@ -44,13 +44,31 @@ func New(c *config.Config) {
 		log.Panicf("error - [main.New] unable to create grpc client: %v", err)
 	}
 
+	// Redis initialization
+	redisClient, err := newRedis(redisOptions{
+		host:     c.RedisConfig.Host,
+		password: c.RedisConfig.Password,
+		timeout:  c.RedisConfig.Timeout,
+		maxRetry: c.RedisConfig.MaxRetry,
+		poolSize: c.RedisConfig.PoolSize,
+		db:       c.RedisConfig.DB,
+	})
+	if err != nil {
+		log.Panicf("error - [main.New] unable to connect to Redis: %v", err)
+	}
+	defer func() {
+		if err := redisClient.client.Close(); err != nil {
+			slog.Error("error - [main.New] unable to close Redis connection", slog.Any("error", err))
+		}
+	}()
+
 	// HTTP Client initialization
-	httpClientWiremock := httpclient.NewHTTPClient(httpclient.Options{
-		MaxConns:                 c.WiremockAPIConfig.MaxConns,
-		MaxRetry:                 c.WiremockAPIConfig.MaxRetry,
-		Timeout:                  c.WiremockAPIConfig.Timeout,
-		InsecureSkipVerify:       c.WiremockAPIConfig.InsecureSkipVerify,
-		MaxTransactionsPerSecond: c.WiremockAPIConfig.MaxTransactionsPerSecond,
+	httpClientCoreBusinessServer := httpclient.NewHTTPClient(httpclient.Options{
+		MaxConns:                 c.APICoreBusinessServerConfig.MaxConns,
+		MaxRetry:                 c.APICoreBusinessServerConfig.MaxRetry,
+		Timeout:                  c.APICoreBusinessServerConfig.Timeout,
+		InsecureSkipVerify:       c.APICoreBusinessServerConfig.InsecureSkipVerify,
+		MaxTransactionsPerSecond: c.APICoreBusinessServerConfig.MaxTransactionsPerSecond,
 	})
 
 	// Repository initialization
@@ -58,20 +76,25 @@ func New(c *config.Config) {
 		GRPCClient: grpcClient.client,
 	})
 
-	exampleRepo := repository.NewExampleRepository(repository.ExampleRepositoryConfig{})
+	cacheRepo := repository.NewCacheRepository(repository.CacheRepositoryConfig{
+		KeyUserVerifiedAccount: c.RedisConfig.KeyUserVerifiedAccount,
+	}, repository.CacheRepositoryDependencies{
+		Client: redisClient.client,
+	})
 
-	wiremockAPIRepo := repository.NewWiremockAPIRepository(repository.WiremockAPIRepositoryConfig{
-		BaseURL: c.WiremockAPIConfig.BaseURL,
-		Path:    c.WiremockAPIConfig.Path,
-	}, repository.WiremockAPIRepositoryDependencies{
-		Client: httpClientWiremock,
+	apiCoreBusinessServerRepo := repository.NewAPICoreBusinessServerRepository(repository.APICoreBusinessServerRepositoryConfig{
+		BaseURL:    c.APICoreBusinessServerConfig.BaseURL,
+		CreatePath: c.APICoreBusinessServerConfig.CreatePath,
+	}, repository.APICoreBusinessServerRepositoryDependencies{
+		Client: httpClientCoreBusinessServer,
 	})
 
 	// Service initialization
 	service := service.New(service.Dependencies{
-		AuthMiddlewareRepository: authRepo,
-		ExampleRepository:        exampleRepo,
-		WiremockAPIRepository:    wiremockAPIRepo,
+		Conf:                            c,
+		AuthMiddlewareRepository:        authRepo,
+		CacheRepository:                 cacheRepo,
+		APICoreBusinessServerRepository: apiCoreBusinessServerRepo,
 	})
 
 	// Handler initialization

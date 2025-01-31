@@ -37,11 +37,12 @@ func New() *Config {
 
 // Config represents the configuration of the server
 type Config struct {
-	AppConfig         AppConfig
-	LogConfig         LogConfig
-	GRPCAuthConfig    GRPCAuthConfig
-	SentryConfig      SentryConfig
-	WiremockAPIConfig WiremockAPIConfig
+	AppConfig                   AppConfig
+	LogConfig                   LogConfig
+	GRPCAuthConfig              GRPCAuthConfig
+	SentryConfig                SentryConfig
+	RedisConfig                 RedisConfig
+	APICoreBusinessServerConfig APICoreBusinessServerConfig
 }
 
 // AppConfig represents the configuration of the application
@@ -67,13 +68,24 @@ type SentryConfig struct {
 	SentryDSN string `env:"SENTRY_DSN"`
 }
 
-// WiremockAPIConfig represents the configuration of the Wiremock API
-type WiremockAPIConfig struct {
-	BaseURL                  string        `env:"WIREMOCK_API_BASE_URL,notEmpty"`
-	Path                     string        `env:"WIREMOCK_API_PATH,notEmpty"`
-	MaxConns                 int           `env:"WIREMOCK_API_MAX_CONNS,notEmpty"`
-	MaxRetry                 int           `env:"WIREMOCK_API_MAX_RETRY"`
-	Timeout                  time.Duration `env:"WIREMOCK_API_TIMEOUT,notEmpty"`
-	InsecureSkipVerify       bool          `env:"WIREMOCK_API_INSECURE_SKIP_VERIFY,notEmpty"`
-	MaxTransactionsPerSecond int           `env:"WIREMOCK_API_MAX_TRANSACTIONS_PER_SECOND"`
+// RedisConfig represents the configuration of the Redis cache
+type RedisConfig struct {
+	Host                   string        `env:"REDIS_HOST,notEmpty"`
+	Password               string        `env:"REDIS_PASSWORD,notEmpty"`
+	Timeout                time.Duration `env:"REDIS_TIMEOUT,notEmpty"`
+	MaxRetry               int           `env:"REDIS_MAX_RETRY,notEmpty"`
+	PoolSize               int           `env:"REDIS_POOL_SIZE,notEmpty"`
+	DB                     int           `env:"REDIS_DB,notEmpty"`
+	KeyUserVerifiedAccount string        `env:"REDIS_KEY_USER_VERIFIED_ACCOUNT,notEmpty"`
+}
+
+// APICoreBusinessServerConfig represents the configuration of the Core Business Server API
+type APICoreBusinessServerConfig struct {
+	BaseURL                  string        `env:"API_CORE_BUSINESS_SERVER_BASE_URL,notEmpty"`
+	CreatePath               string        `env:"API_CORE_BUSINESS_SERVER_CREATE_PATH,notEmpty"`
+	MaxConns                 int           `env:"API_CORE_BUSINESS_SERVER_MAX_CONNS,notEmpty"`
+	MaxRetry                 int           `env:"API_CORE_BUSINESS_SERVER_MAX_RETRY"`
+	Timeout                  time.Duration `env:"API_CORE_BUSINESS_SERVER_TIMEOUT,notEmpty"`
+	InsecureSkipVerify       bool          `env:"API_CORE_BUSINESS_SERVER_INSECURE_SKIP_VERIFY,notEmpty"`
+	MaxTransactionsPerSecond int           `env:"API_CORE_BUSINESS_SERVER_MAX_TRANSACTIONS_PER_SECOND"`
 }

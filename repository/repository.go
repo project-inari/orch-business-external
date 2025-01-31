@@ -3,6 +3,9 @@ package repository
 
 import (
 	"context"
+	"time"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/project-inari/orch-business-external/dto"
 	"github.com/project-inari/orch-business-external/pkg/httpclient"
@@ -13,12 +16,13 @@ type AuthMiddlewareRepository interface {
 	VerifyToken(ctx context.Context, token string) error
 }
 
-// ExampleRepository represents the repository layer functions of example repository
-type ExampleRepository interface {
-	DoExample(ctx context.Context) (string, error)
+// CacheRepository represents the repository layer functions of cache repository
+type CacheRepository interface {
+	Get(ctx context.Context, key string) *redis.StringCmd
+	Set(ctx context.Context, key string, value interface{}, ttl time.Duration) *redis.StatusCmd
 }
 
-// WiremockAPIRepository represents the repository layer functions of wiremock API repository
-type WiremockAPIRepository interface {
-	GetTest(ctx context.Context, h dto.WiremockGetTestHeader) (*httpclient.Response[dto.WiremockGetTestResponse], error)
+// APICoreBusinessServerRepository represents the repository layer functions of api core business server repository
+type APICoreBusinessServerRepository interface {
+	CallCreate(ctx context.Context, req dto.CoreBusinessServerCreateReq) (*httpclient.Response[dto.CoreBusinessServerCreateRes], error)
 }
