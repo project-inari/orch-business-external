@@ -14,6 +14,8 @@ services:
     command: air -c .air.toml
     depends_on:
       - wiremock
+      - gripmock
+      - redis
     networks:
       - app-network
 
@@ -37,6 +39,16 @@ services:
       - ./tools/gripmock/proto:/proto
       - ./tools/gripmock/stub:/stub
     command: ["--stub=/stub", "/proto/auth.proto"]
+    networks:
+      - app-network
+
+  redis:
+    image: redis:7.4.0
+    container_name: redis
+    ports:
+      - 6379:6379
+    command: >
+      --requirepass 1234
     networks:
       - app-network
 

@@ -2,71 +2,256 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
+	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-
+	"github.com/project-inari/orch-business-external/config"
 	"github.com/project-inari/orch-business-external/dto"
 	"github.com/project-inari/orch-business-external/pkg/httpclient"
+	"github.com/redis/go-redis/v9"
+	"github.com/stretchr/testify/assert"
+)
+
+type mockAuthMiddlewareRepository struct {
+	err error
+}
+
+func (m *mockAuthMiddlewareRepository) VerifyToken(_ context.Context, _ string) error {
+	return m.err
+}
+
+type mockAPICoreBusinessServerRepository struct {
+	createRes *httpclient.Response[dto.CoreBusinessServerCreateRes]
+	err       error
+}
+
+func (m *mockAPICoreBusinessServerRepository) CallCreate(_ context.Context, _ dto.CoreBusinessServerCreateReq) (*httpclient.Response[dto.CoreBusinessServerCreateRes], error) {
+	return m.createRes, m.err
+}
+
+type mockCacheRepository struct {
+	getRes *redis.StringCmd
+	setRes *redis.StatusCmd
+}
+
+func (m *mockCacheRepository) Get(_ context.Context, _ string) *redis.StringCmd {
+	return m.getRes
+}
+
+func (m *mockCacheRepository) Set(_ context.Context, _ string, _ interface{}, _ time.Duration) *redis.StatusCmd {
+	return m.setRes
+}
+
+func (m *mockCacheRepository) SetWithRemainingTTL(_ context.Context, _ string, _ interface{}) *redis.StatusCmd {
+	return m.setRes
+}
+
+const (
+	mockName             = "mockName"
+	mockIndustryType     = "mockIndustryType"
+	mockBusinessType     = "mockBusinessType"
+	mockDescription      = "mockDescription"
+	mockPhoneNo          = "mockPhoneNo"
+	mockOperatingHours   = `{"monday":{"open":true,"openTime":"09:00","closeTime":"17:00"},"tuesday":{"open":true,"openTime":"09:00","closeTime":"17:00"},"wednesday":{"open":true,"openTime":"09:00","closeTime":"17:00"},"thursday":{"open":true,"openTime":"09:00","closeTime":"17:00"},"friday":{"open":true,"openTime":"09:00","closeTime":"17:00"},"saturday":{"open":false},"sunday":{"open":false}}`
+	mockAddress          = "mockAddress"
+	mockBusinessImageURL = "mockBusinessImageURL"
+	mockOwnerUsername    = "mockOwnerUsername"
 )
 
 var (
-	mockContext = context.Background()
+	mockOperatingHoursStruct = dto.OperatingHours{
+		Monday: dto.OpenTime{
+			Open:      true,
+			OpenTime:  "09:00",
+			CloseTime: "17:00",
+		},
+		Tuesday: dto.OpenTime{
+			Open:      true,
+			OpenTime:  "09:00",
+			CloseTime: "17:00",
+		},
+		Wednesday: dto.OpenTime{
+			Open:      true,
+			OpenTime:  "09:00",
+			CloseTime: "17:00",
+		},
+		Thursday: dto.OpenTime{
+			Open:      true,
+			OpenTime:  "09:00",
+			CloseTime: "17:00",
+		},
+		Friday: dto.OpenTime{
+			Open:      true,
+			OpenTime:  "09:00",
+			CloseTime: "17:00",
+		},
+		Saturday: dto.OpenTime{
+			Open: false,
+		},
+		Sunday: dto.OpenTime{
+			Open: false,
+		},
+	}
 )
 
-type mockExampleRepository struct {
-	mock.Mock
-}
+func TestCreateNewBusiness(t *testing.T) {
+	ctx := context.Background()
 
-func (m *mockExampleRepository) DoExample(ctx context.Context) (string, error) {
-	args := m.Called(ctx)
-	return args.String(0), args.Error(1)
-}
+	mockAuthMiddlewareRepository := &mockAuthMiddlewareRepository{
+		err: nil,
+	}
 
-type mockWiremockAPIRepository struct {
-	mock.Mock
-}
+	req := dto.CreateNewBusinessReq{
+		Name:             mockName,
+		IndustryType:     mockIndustryType,
+		BusinessType:     mockBusinessType,
+		Description:      mockDescription,
+		PhoneNo:          mockPhoneNo,
+		OperatingHours:   mockOperatingHoursStruct,
+		Address:          mockAddress,
+		BusinessImageURL: mockBusinessImageURL,
+		OwnerUsername:    mockOwnerUsername,
+	}
 
-func (m *mockWiremockAPIRepository) GetTest(ctx context.Context, h dto.WiremockGetTestHeader) (*httpclient.Response[dto.WiremockGetTestResponse], error) {
-	args := m.Called(ctx, h)
-	return args.Get(0).(*httpclient.Response[dto.WiremockGetTestResponse]), args.Error(1)
-}
+	expectedRes := &dto.CreateNewBusinessRes{
+		BusinessID:   1,
+		BusinessName: mockName,
+		Success:      true,
+	}
 
-func TestDoExample(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		mockExampleRepository := new(mockExampleRepository)
-		mockExampleRepository.On("DoExample", mock.Anything).Return("example", nil)
-
-		s := New(Dependencies{
-			ExampleRepository: mockExampleRepository,
-		})
-
-		result, err := s.DoExample(mockContext)
-
-		assert.NoError(t, err)
-		assert.Equal(t, "example", result)
-	})
-}
-
-func TestDoWiremock(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		mockWiremockAPIRepository := new(mockWiremockAPIRepository)
-		mockWiremockAPIRepository.On("GetTest", mock.Anything, mock.Anything).Return(&httpclient.Response[dto.WiremockGetTestResponse]{
-			HTTPStatusCode: http.StatusOK,
-			Response: dto.WiremockGetTestResponse{
-				Message: "test",
+		mockAPICoreBusinessServerRepository := &mockAPICoreBusinessServerRepository{
+			createRes: &httpclient.Response[dto.CoreBusinessServerCreateRes]{
+				HTTPStatusCode: http.StatusOK,
+				Response: dto.CoreBusinessServerCreateRes{
+					BusinessID:   1,
+					BusinessName: mockName,
+					Success:      true,
+				},
 			},
-		}, nil)
+		}
 
-		s := New(Dependencies{
-			WiremockAPIRepository: mockWiremockAPIRepository,
+		mockCacheRepository := &mockCacheRepository{
+			getRes: redis.NewStringResult(`{"username":"username","uid":"uid","firstName":"first_name","lastName":"last_name","phoneNo":"phone_no","email":"email"}`, nil),
+			setRes: redis.NewStatusCmd(ctx, "OK"),
+		}
+
+		svc := New(Dependencies{
+			Conf:                            &config.Config{},
+			AuthMiddlewareRepository:        mockAuthMiddlewareRepository,
+			CacheRepository:                 mockCacheRepository,
+			APICoreBusinessServerRepository: mockAPICoreBusinessServerRepository,
 		})
 
-		result, err := s.DoWiremock(mockContext)
+		res, err := svc.CreateNewBusiness(ctx, req)
 
 		assert.NoError(t, err)
-		assert.Equal(t, "test", result.Message)
+		assert.Equal(t, expectedRes, res)
+	})
+
+	t.Run("success - cache not exists", func(t *testing.T) {
+		mockAPICoreBusinessServerRepository := &mockAPICoreBusinessServerRepository{
+			createRes: &httpclient.Response[dto.CoreBusinessServerCreateRes]{
+				HTTPStatusCode: http.StatusOK,
+				Response: dto.CoreBusinessServerCreateRes{
+					BusinessID:   1,
+					BusinessName: mockName,
+					Success:      true,
+				},
+			},
+		}
+
+		mockCacheRepository := &mockCacheRepository{
+			getRes: redis.NewStringResult("", redis.Nil),
+		}
+
+		svc := New(Dependencies{
+			Conf:                            &config.Config{},
+			AuthMiddlewareRepository:        mockAuthMiddlewareRepository,
+			CacheRepository:                 mockCacheRepository,
+			APICoreBusinessServerRepository: mockAPICoreBusinessServerRepository,
+		})
+
+		res, err := svc.CreateNewBusiness(ctx, req)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedRes, res)
+	})
+
+	t.Run("error - when call api create core-business-server httpclient returned error", func(t *testing.T) {
+		mockAPICoreBusinessServerRepository := &mockAPICoreBusinessServerRepository{
+			err: assert.AnError,
+		}
+
+		mockCacheRepository := &mockCacheRepository{}
+
+		svc := New(Dependencies{
+			Conf:                            &config.Config{},
+			AuthMiddlewareRepository:        mockAuthMiddlewareRepository,
+			CacheRepository:                 mockCacheRepository,
+			APICoreBusinessServerRepository: mockAPICoreBusinessServerRepository,
+		})
+
+		res, err := svc.CreateNewBusiness(ctx, req)
+
+		assert.Error(t, err)
+		assert.Nil(t, res)
+	})
+
+	t.Run("error - when call api create core-business-server httpclient returned http status code not 200", func(t *testing.T) {
+		mockAPICoreBusinessServerRepository := &mockAPICoreBusinessServerRepository{
+			createRes: &httpclient.Response[dto.CoreBusinessServerCreateRes]{
+				HTTPStatusCode: http.StatusBadRequest,
+				Response: dto.CoreBusinessServerCreateRes{
+					BusinessID:   0,
+					BusinessName: "",
+					Success:      false,
+				},
+			},
+		}
+
+		mockCacheRepository := &mockCacheRepository{}
+
+		svc := New(Dependencies{
+			Conf:                            &config.Config{},
+			AuthMiddlewareRepository:        mockAuthMiddlewareRepository,
+			CacheRepository:                 mockCacheRepository,
+			APICoreBusinessServerRepository: mockAPICoreBusinessServerRepository,
+		})
+
+		res, err := svc.CreateNewBusiness(ctx, req)
+
+		assert.Error(t, err)
+		assert.Nil(t, res)
+	})
+
+	t.Run("error - when get user session from cache returned error", func(t *testing.T) {
+		mockAPICoreBusinessServerRepository := &mockAPICoreBusinessServerRepository{
+			createRes: &httpclient.Response[dto.CoreBusinessServerCreateRes]{
+				HTTPStatusCode: http.StatusOK,
+				Response: dto.CoreBusinessServerCreateRes{
+					BusinessID:   1,
+					BusinessName: mockName,
+					Success:      true,
+				},
+			},
+		}
+
+		mockCacheRepository := &mockCacheRepository{
+			getRes: redis.NewStringResult("", errors.New("error")),
+		}
+
+		svc := New(Dependencies{
+			Conf:                            &config.Config{},
+			AuthMiddlewareRepository:        mockAuthMiddlewareRepository,
+			CacheRepository:                 mockCacheRepository,
+			APICoreBusinessServerRepository: mockAPICoreBusinessServerRepository,
+		})
+
+		_, err := svc.CreateNewBusiness(ctx, req)
+
+		assert.Error(t, err)
 	})
 }
