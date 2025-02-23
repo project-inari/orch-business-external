@@ -1,0 +1,2 @@
+SET USER-VERIFIED-ACCOUNT:test1 "{\"username\": \"testbiz1\", \"uid\": \"uid\", \"firstName\": \"first_name\", \"lastName\": \"last_name\", \"phoneNo\": \"phone_no\", \"email\": \"email\"}"
+GET USER-VERIFIED-ACCOUNT:test1

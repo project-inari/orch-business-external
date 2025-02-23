@@ -39,3 +39,13 @@ func (r *cacheRepository) Set(ctx context.Context, key string, value interface{}
 	marshalValue, _ := json.Marshal(value)
 	return r.client.Set(ctx, key, marshalValue, ttl)
 }
+
+func (r *cacheRepository) SetWithRemainingTTL(ctx context.Context, key string, value interface{}) *redis.StatusCmd {
+	ttl, err := r.client.TTL(ctx, key).Result()
+	if err != nil {
+		return redis.NewStatusCmd(ctx, err)
+	}
+
+	marshalValue, _ := json.Marshal(value)
+	return r.client.Set(ctx, key, marshalValue, ttl)
+}

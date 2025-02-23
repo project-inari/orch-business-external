@@ -20,6 +20,7 @@ type AuthMiddlewareRepository interface {
 type CacheRepository interface {
 	Get(ctx context.Context, key string) *redis.StringCmd
 	Set(ctx context.Context, key string, value interface{}, ttl time.Duration) *redis.StatusCmd
+	SetWithRemainingTTL(ctx context.Context, key string, value interface{}) *redis.StatusCmd
 }
 
 // APICoreBusinessServerRepository represents the repository layer functions of api core business server repository

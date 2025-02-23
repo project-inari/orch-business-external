@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"testing"
 	"time"
@@ -40,6 +41,10 @@ func (m *mockCacheRepository) Get(_ context.Context, _ string) *redis.StringCmd 
 }
 
 func (m *mockCacheRepository) Set(_ context.Context, _ string, _ interface{}, _ time.Duration) *redis.StatusCmd {
+	return m.setRes
+}
+
+func (m *mockCacheRepository) SetWithRemainingTTL(_ context.Context, _ string, _ interface{}) *redis.StatusCmd {
 	return m.setRes
 }
 
@@ -128,7 +133,39 @@ func TestCreateNewBusiness(t *testing.T) {
 			},
 		}
 
-		mockCacheRepository := &mockCacheRepository{}
+		mockCacheRepository := &mockCacheRepository{
+			getRes: redis.NewStringResult(`{"username":"username","uid":"uid","firstName":"first_name","lastName":"last_name","phoneNo":"phone_no","email":"email"}`, nil),
+			setRes: redis.NewStatusCmd(ctx, "OK"),
+		}
+
+		svc := New(Dependencies{
+			Conf:                            &config.Config{},
+			AuthMiddlewareRepository:        mockAuthMiddlewareRepository,
+			CacheRepository:                 mockCacheRepository,
+			APICoreBusinessServerRepository: mockAPICoreBusinessServerRepository,
+		})
+
+		res, err := svc.CreateNewBusiness(ctx, req)
+
+		assert.NoError(t, err)
+		assert.Equal(t, expectedRes, res)
+	})
+
+	t.Run("success - cache not exists", func(t *testing.T) {
+		mockAPICoreBusinessServerRepository := &mockAPICoreBusinessServerRepository{
+			createRes: &httpclient.Response[dto.CoreBusinessServerCreateRes]{
+				HTTPStatusCode: http.StatusOK,
+				Response: dto.CoreBusinessServerCreateRes{
+					BusinessID:   1,
+					BusinessName: mockName,
+					Success:      true,
+				},
+			},
+		}
+
+		mockCacheRepository := &mockCacheRepository{
+			getRes: redis.NewStringResult("", redis.Nil),
+		}
 
 		svc := New(Dependencies{
 			Conf:                            &config.Config{},
@@ -188,5 +225,33 @@ func TestCreateNewBusiness(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, res)
+	})
+
+	t.Run("error - when get user session from cache returned error", func(t *testing.T) {
+		mockAPICoreBusinessServerRepository := &mockAPICoreBusinessServerRepository{
+			createRes: &httpclient.Response[dto.CoreBusinessServerCreateRes]{
+				HTTPStatusCode: http.StatusOK,
+				Response: dto.CoreBusinessServerCreateRes{
+					BusinessID:   1,
+					BusinessName: mockName,
+					Success:      true,
+				},
+			},
+		}
+
+		mockCacheRepository := &mockCacheRepository{
+			getRes: redis.NewStringResult("", errors.New("error")),
+		}
+
+		svc := New(Dependencies{
+			Conf:                            &config.Config{},
+			AuthMiddlewareRepository:        mockAuthMiddlewareRepository,
+			CacheRepository:                 mockCacheRepository,
+			APICoreBusinessServerRepository: mockAPICoreBusinessServerRepository,
+		})
+
+		_, err := svc.CreateNewBusiness(ctx, req)
+
+		assert.Error(t, err)
 	})
 }
